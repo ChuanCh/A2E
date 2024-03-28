@@ -1,0 +1,17 @@
+Segment length:
+    ✓ Fixed-Length Segments: not require variability
+        Overlapping Windows
+
+    Variable-Length Segments with Padding
+        Random Sampling
+
+Representation:
+# raw audio
+
+# fourier descriptors
+
+# mfcc
+
+# mel spectrogram
+
+Models:
