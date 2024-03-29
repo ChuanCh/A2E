@@ -15,3 +15,4 @@ Representation:
 # mel spectrogram
 
 Models:
+LSTM
