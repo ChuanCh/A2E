@@ -213,11 +213,6 @@ class VoiceDataset(Dataset):
     def fourier_descriptor(self, wav):
         return wav
 
-# Function to log configuration details to TensorBoard
-def tensorboard_log_config(writer, model, input_type, sample_rate, sample_length, batch_size):
-    config_text = f"Model type: {type(model).__name__}\nInput type: {input_type}\nSample rate: {sample_rate} Hz \nSample length: {sample_length} samples\nBatch size: {batch_size}"
-    writer.add_text('Training Configuration', config_text, 0)
-
 
 # FNN
 class Feedforward(torch.nn.Module):
@@ -314,6 +309,39 @@ class LSTMmodel(nn.Module):
         out = self.fc(out).view(x.size(0), -1, self.n_mels)
         return out
 
+class HybridCNNLSTM(nn.Module):
+    def __init__(self, input_size, num_channels, hidden_size, num_layers, output_size):
+        super(HybridCNNLSTM, self).__init__()
+
+        # Define the CNN part
+        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=num_channels, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv1d(in_channels=num_channels, out_channels=num_channels*2, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2, padding=0)
+
+        # Define the LSTM part
+        self.lstm = nn.LSTM(input_size=num_channels*2, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+
+        # Define the output layer
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        # Apply the CNN part
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+
+        # Prepare the output of CNN for LSTM
+        x = x.permute(0, 2, 1)  # Reshape the tensor so it's of shape (batch_size, seq_len, features)
+
+        # Apply the LSTM part
+        x, (hn, cn) = self.lstm(x)
+
+        # Take the last hidden state to pass to the output layer
+        x = x[:, -1, :]
+        x = self.fc(x)
+
+        return x
 
 
 # Transformer
@@ -436,3 +464,4 @@ def train_model(writer, model, train_loader, val_loader, num_epochs, learning_ra
     plt.show()
 
     return model
+
