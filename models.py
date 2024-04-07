@@ -213,6 +213,40 @@ class VoiceDataset(Dataset):
     def fourier_descriptor(self, wav):
         return wav
 
+class LSTM_VoiceDataset(Dataset):
+    def __init__(self, input_mel_specs, target_mel_specs):
+        """
+        Initializes the dataset with input and target Mel spectrograms.
+
+        Args:
+        input_mel_specs (numpy.ndarray): A 3D numpy array of shape (num_samples, num_frames, n_mels)
+                                         containing the Mel spectrogram for the input audio.
+        target_mel_specs (numpy.ndarray): A 3D numpy array of shape (num_samples, num_frames, n_mels)
+                                          containing the Mel spectrogram for the target audio.
+        """
+        assert input_mel_specs.shape == target_mel_specs.shape, "Input and target spectrograms must have the same shape"
+        
+        self.input_mel_specs = input_mel_specs
+        self.target_mel_specs = target_mel_specs
+
+    def __len__(self):
+        """Returns the number of samples in the dataset."""
+        return self.input_mel_specs.shape[0]
+
+    def __getitem__(self, idx):
+        """
+        Returns the input and target Mel spectrogram for a given index.
+
+        Args:
+        idx (int): The index of the sample.
+
+        Returns:
+        Tuple[torch.Tensor, torch.Tensor]: The input and target Mel spectrograms as PyTorch tensors.
+        """
+        input_spec = torch.tensor(self.input_mel_specs[idx], dtype=torch.float32)
+        target_spec = torch.tensor(self.target_mel_specs[idx], dtype=torch.float32)
+        
+        return input_spec, target_spec
 
 # FNN
 class Feedforward(torch.nn.Module):
@@ -437,7 +471,9 @@ def train_model(writer, model, train_loader, val_loader, num_epochs, learning_ra
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             patience_counter = 0
-            # Save the best model checkpoint if desired
+            # Save the best model checkpoint, name after model type + representation type + val loss + epoch
+            model_path = f'{type(model).__name__}_{avg_val_loss:.4f}_{epoch}.pth'
+            torch.save(model.state_dict(), 'best_model.pth')
         else:
             patience_counter += 1
 

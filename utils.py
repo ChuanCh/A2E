@@ -6,6 +6,7 @@
 
 import numpy as np
 from scipy.signal import butter, lfilter
+import librosa
 
 def EGG_noise_deduction(EGG_signal, noise_threshold):
     """
@@ -87,3 +88,88 @@ def tensorboard_log_config(writer, model, input_type, sample_rate, sample_length
     notes = input("Enter your notes for this experiment setup: ")
     writer.add_text('Training Configuration', config_text, 0)
     writer.add_text('Notes', notes, 0)
+
+def reshape_to_fit_LSTM(input, num_frames):
+    """
+    Reshape an input of shape (n_feature, total_samples) to (num_samples, num_frames, n_feature).
+
+    Args:
+    input (numpy.ndarray): The input to reshape.
+    num_frames (int): The number of frames to include in each sample.
+
+    Returns:
+    numpy.ndarray: The reshaped input.
+    """
+    n_feature, total_samples = input.shape
+    # Calculate the number of samples
+    num_samples = total_samples // num_frames
+    # Calculate the new shape
+    new_shape = (num_samples, num_frames, n_feature)
+    # Reshape the input
+    reshaped_input = input[:, :num_samples * num_frames].reshape(new_shape)
+    return reshaped_input
+
+def split_data(audio, egg, train_frac=0.8, val_frac=0.1):
+    total_length = len(audio)
+    train_end = int(total_length * train_frac)
+    val_end = int(total_length * (train_frac + val_frac))
+    
+    audio_train = audio[:train_end]
+    egg_train = egg[:train_end]
+    
+    audio_val = audio[train_end:val_end]
+    egg_val = egg[train_end:val_end]
+    
+    audio_test = audio[val_end:]
+    egg_test = egg[val_end:]
+    
+    return (audio_train, egg_train), (audio_val, egg_val), (audio_test, egg_test)
+
+def preprocess_data(audio_wav, egg_wav, n_fft, hop_length, window, mag_min=None, mag_max=None):
+    # Compute the STFT
+    stft_result_audio = librosa.stft(audio_wav, n_fft=n_fft, hop_length=hop_length, window=window)
+    stft_result_egg = librosa.stft(egg_wav, n_fft=n_fft, hop_length=hop_length, window=window)
+
+    # Extract magnitude and phase
+    magnitude_audio = np.abs(stft_result_audio)
+    phase_audio = np.angle(stft_result_audio)
+    magnitude_egg = np.abs(stft_result_egg)
+    phase_egg = np.angle(stft_result_egg)
+ 
+
+    # Calculate min and max for normalization if not provided
+    if mag_min is None:
+        mag_min = min(np.min(magnitude_audio), np.min(magnitude_egg))
+    if mag_max is None:
+        mag_max = max(np.max(magnitude_audio), np.max(magnitude_egg))
+
+    # Normalize the magnitude into 0 to 1
+    magnitude_audio = (magnitude_audio - mag_min) / (mag_max - mag_min)
+    magnitude_egg = (magnitude_egg - mag_min) / (mag_max - mag_min)
+
+    # calculate sin and cos of phase
+    phase_audio_sin = np.sin(phase_audio)
+    phase_audio_cos = np.cos(phase_audio)
+    phase_egg_sin = np.sin(phase_egg)
+    phase_egg_cos = np.cos(phase_egg)
+
+    # Unwrap the phase
+    # phase_audio = np.unwrap(phase_audio)
+    # phase_egg = np.unwrap(phase_egg)
+
+    # Add magnitude and phase into one feature vector
+    complex_audio = np.concatenate((magnitude_audio, phase_audio_sin, phase_audio_cos), axis=0)
+    complex_egg = np.concatenate((magnitude_egg, phase_egg_sin, phase_egg_cos), axis=0)
+
+    return complex_audio, complex_egg, mag_min, mag_max
+
+def denormalize(value, min_val, max_val):
+    """Reverses the normalization"""
+    return (value * (max_val - min_val)) + min_val
+
+def reconstruct_signal(magnitude, phase, hop_length, window):
+    """Reconstructs an audio signal from magnitude and phase"""
+    # Convert magnitude and phase into a complex STFT matrix
+    stft_matrix = magnitude * np.exp(1j * phase)
+    # Reconstruct the audio signal
+    return librosa.istft(stft_matrix, hop_length=hop_length, window=window)
