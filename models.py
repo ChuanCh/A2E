@@ -311,36 +311,41 @@ class CNN(nn.Module):
 
 # LSTM
 class LSTMmodel(nn.Module):
-    def __init__(self, n_mels, hidden_size, num_layers=1):
+    def __init__(self, n_mels, hidden_size, num_layers=1, dropout_rate=0.5):
         super(LSTMmodel, self).__init__()
         self.n_mels = n_mels
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         
-        # LSTM layer(s)
+        # Bidirectional LSTM layer(s)
         self.lstm = nn.LSTM(input_size=n_mels, 
                             hidden_size=hidden_size, 
                             num_layers=num_layers, 
-                            batch_first=True)
+                            batch_first=True,
+                            dropout=dropout_rate,
+                            bidirectional=True)  # Make LSTM bidirectional
         
-        # Fully connected layer that maps from hidden state space to output space
-        self.fc = nn.Linear(hidden_size, n_mels)
+        # More complex fully connected layers
+        self.fc1 = nn.Linear(hidden_size * 2, hidden_size)  # Adjust for bidirectional output
+        self.bn1 = nn.BatchNorm1d(hidden_size)  # Batch normalization
+        self.fc2 = nn.Linear(hidden_size, n_mels)
     
     def forward(self, x):
         # Initialize hidden and cell states
-        # Dimensions: (num_layers, batch_size, hidden_size)
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)  # *2 for bidirection
+        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
         
         # Forward propagate LSTM
-        # Output shape: (batch_size, seq_len, hidden_size)
         out, _ = self.lstm(x, (h0, c0))
         
-        # Reshape output to (batch_size*seq_len, hidden_size)
-        out = out.contiguous().view(-1, self.hidden_size)
+        # Reshape output for the fully connected layer
+        out = out.contiguous().view(-1, self.hidden_size * 2)  # Adjust for bidirectional output
         
-        # Pass through fully connected layer and reshape to (batch_size, seq_len, n_mels)
-        out = self.fc(out).view(x.size(0), -1, self.n_mels)
+        # Pass through the first fully connected layer, batch normalization and ReLU
+        out = F.relu(self.bn1(self.fc1(out)))
+        
+        # Pass through the second fully connected layer
+        out = self.fc2(out).view(x.size(0), -1, self.n_mels)
         return out
 
 class HybridCNNLSTM(nn.Module):

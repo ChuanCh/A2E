@@ -125,16 +125,29 @@ def split_data(audio, egg, train_frac=0.8, val_frac=0.1):
     
     return (audio_train, egg_train), (audio_val, egg_val), (audio_test, egg_test)
 
-def preprocess_data(audio_wav, egg_wav, n_fft, hop_length, window, mag_min=None, mag_max=None):
+def preprocess_data(
+        audio_wav, 
+        egg_wav, 
+        n_fft, 
+        hop_length, 
+        n_harmonics, 
+        window, 
+        mag_min=None, 
+        mag_max=None):
+    
     # Compute the STFT
     stft_result_audio = librosa.stft(audio_wav, n_fft=n_fft, hop_length=hop_length, window=window)
     stft_result_egg = librosa.stft(egg_wav, n_fft=n_fft, hop_length=hop_length, window=window)
 
+    # only keep the first n_harmonics
+    stft_result_audio = stft_result_audio[:n_harmonics, :]
+    stft_result_egg = stft_result_egg[:n_harmonics, :]
+
     # Extract magnitude and phase
-    magnitude_audio = np.abs(stft_result_audio)
-    phase_audio = np.angle(stft_result_audio)
-    magnitude_egg = np.abs(stft_result_egg)
-    phase_egg = np.angle(stft_result_egg)
+    magnitude_audio = np.real(stft_result_audio)
+    phase_audio = np.imag(stft_result_audio)
+    magnitude_egg = np.real(stft_result_egg)
+    phase_egg = np.imag(stft_result_egg)
  
 
     # Calculate min and max for normalization if not provided
@@ -143,9 +156,8 @@ def preprocess_data(audio_wav, egg_wav, n_fft, hop_length, window, mag_min=None,
     if mag_max is None:
         mag_max = max(np.max(magnitude_audio), np.max(magnitude_egg))
 
-    # Normalize the magnitude into 0 to 1
-    magnitude_audio = (magnitude_audio - mag_min) / (mag_max - mag_min)
-    magnitude_egg = (magnitude_egg - mag_min) / (mag_max - mag_min)
+    # Normalize the magnitude into range [-1,1]
+    
 
     # calculate sin and cos of phase
     phase_audio_sin = np.sin(phase_audio)
