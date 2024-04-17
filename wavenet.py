@@ -48,6 +48,10 @@ class AudioEGGDataset(Dataset):
                 audio = self.transform(audio)
                 egg = self.transform(egg)
 
+            # divide by max value to normalize
+            audio = audio / np.max(np.abs(audio))
+            egg = egg / np.max(np.abs(egg))
+
             # Convert to PyTorch tensors and add channel dimension
             audio = torch.from_numpy(audio).float().unsqueeze(0)  # Add channel dimension
             egg = torch.from_numpy(egg).float().unsqueeze(0)
@@ -205,5 +209,5 @@ for epoch in range(100):  # Adjust the number of epochs based on your needs
 
     # Save the best model
     if val_loss < early_stopping.val_loss_min:
-        best_model_path = 'best_model.pt'
+        best_model_path = 'WaveNetbest_model.pt'
         torch.save(model.state_dict(), best_model_path)
