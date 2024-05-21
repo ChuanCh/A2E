@@ -7,7 +7,7 @@ Normalization
 
 import os
 from pydub import AudioSegment, silence
-from scipy.signal import butter, lfilter, firwin, medfilt
+from scipy.signal import butter, lfilter, firwin, filtfilt
 
 def move_audio_files(audio_dir, output_dir):
     '''
@@ -129,22 +129,20 @@ def voice_preprocess(voice, sample_rate):
     return voice
 
 def process_EGG_signal(egg_signal, sample_rate, threshold_dB=-40, expansion_ratio=1/4):
-    # high pass filter
-    filtered_signal = apply_high_pass_filter(egg_signal)
+    # High pass filter
+    filtered_signal = apply_high_pass_filter(egg_signal, sample_rate)
     
-    # low pass filter
-    filtered_signal = apply_low_pass_filter(filtered_signal)
+    # Low pass filter
+    filtered_signal = apply_low_pass_filter(filtered_signal, sample_rate)
     
-    # a nine-point running median filter
-
     return filtered_signal
 
 def apply_high_pass_filter(signal, sample_rate=44100, numtaps=1025, cutoff=80):
     # Design the FIR filter
     fir_coeff = firwin(numtaps, cutoff, pass_zero=False, fs=sample_rate, window='hamming')
 
-    # Apply the filter to the signal using lfilter, which applies the filter in a linear-phase manner
-    filtered_signal = lfilter(fir_coeff, 1.0, signal)
+    # Apply the filter to the signal using filtfilt to avoid phase shift
+    filtered_signal = filtfilt(fir_coeff, 1.0, signal)
     
     return filtered_signal
 
@@ -152,8 +150,8 @@ def apply_low_pass_filter(signal, sample_rate=44100, cutoff_hz=10000, numtaps=10
     # Design the low-pass FIR filter with a cutoff of 10 kHz
     fir_coeff = firwin(numtaps, cutoff_hz, fs=sample_rate, window='hamming', pass_zero=True)
 
-    # Apply the filter to the signal
-    filtered_signal = lfilter(fir_coeff, 1.0, signal)
+    # Apply the filter to the signal using filtfilt to avoid phase shift
+    filtered_signal = filtfilt(fir_coeff, 1.0, signal)
 
     return filtered_signal
 

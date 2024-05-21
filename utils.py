@@ -7,6 +7,7 @@
 import numpy as np
 from scipy.signal import butter, lfilter
 import librosa
+import os
 
 def EGG_noise_deduction(EGG_signal, noise_threshold):
     """
@@ -185,3 +186,24 @@ def reconstruct_signal(magnitude, phase, hop_length, window):
     stft_matrix = magnitude * np.exp(1j * phase)
     # Reconstruct the audio signal
     return librosa.istft(stft_matrix, hop_length=hop_length, window=window)
+
+def get_audio_length(file_path):
+    y, sr = librosa.load(file_path, sr=None)
+    return librosa.get_duration(y=y, sr=sr)
+
+def total_audio_length(directory):
+    total_length = 0.0 # in hours
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith(('.mp3', '.wav', '.flac', '.ogg', '.m4a')):
+                file_path = os.path.join(root, file)
+                total_length += get_audio_length(file_path)
+    return total_length
+
+def main():
+    directory = r'F:\TTS_audio\EGG'
+    total_length = total_audio_length(directory)
+    print(f"Total audio length: {total_length} seconds")
+
+if __name__ == '__main__':
+    main()
