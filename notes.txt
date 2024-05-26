@@ -15,4 +15,7 @@ Representation:
 # mel spectrogram
 
 Models:
-LSTM
+LSTM, WaveNet,
+
+Loss function:
+combined freq and time precision

@@ -146,7 +146,7 @@ def apply_high_pass_filter(signal, sample_rate=44100, numtaps=1025, cutoff=80):
     
     return filtered_signal
 
-def apply_low_pass_filter(signal, sample_rate=44100, cutoff_hz=10000, numtaps=1025):
+def apply_low_pass_filter(signal, sample_rate=44100, cutoff_hz=4000, numtaps=1025):
     # Design the low-pass FIR filter with a cutoff of 10 kHz
     fir_coeff = firwin(numtaps, cutoff_hz, fs=sample_rate, window='hamming', pass_zero=True)
 
