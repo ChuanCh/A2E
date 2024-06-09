@@ -41,7 +41,7 @@ def rename(dir):
     for file in wav_files:
         os.rename(os.path.join(dir, file), os.path.join(dir, file.replace('_C_', '_')))
 
-def segment_audio(file_path, min_silence_len=30, silence_thresh=-60, target_length=15):
+def segment_audio_by_silence(file_path, min_silence_len=30, silence_thresh=-60, target_length=15):
     # Load audio file
     audio = AudioSegment.from_wav(file_path)
     audio_channel,egg_channel = audio.split_to_mono()
